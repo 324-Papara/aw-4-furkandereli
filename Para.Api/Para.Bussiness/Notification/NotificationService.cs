@@ -1,32 +1,38 @@
+using Microsoft.Extensions.Configuration;
+using System.Net;
 using System.Net.Mail;
 
 namespace Para.Bussiness.Notification;
 
 public class NotificationService  : INotificationService
 {
+    private readonly IConfiguration _configuration;
+
+    public NotificationService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+
     public void SendEmail(string subject, string email, string content)
     {
-        
-        SmtpClient mySmtpClient = new SmtpClient("my.smtp.exampleserver.net");
+        var smtpSettings = _configuration.GetSection("SmtpSettings");
 
-        mySmtpClient.UseDefaultCredentials = false;
-        System.Net.NetworkCredential basicAuthenticationInfo = new
-            System.Net.NetworkCredential("username", "password");
-        mySmtpClient.Credentials = basicAuthenticationInfo;
+        SmtpClient smtpClient = new SmtpClient(smtpSettings["Host"])
+        {
+            Port = int.Parse(smtpSettings["Port"]),
+            Credentials = new NetworkCredential(smtpSettings["Username"], smtpSettings["Password"]),
+            EnableSsl = true
+        };
 
-        MailAddress from = new MailAddress("test@example.com", "TestFromName");
-        MailAddress to = new MailAddress(email, "TestToName");
-        MailMessage myMail = new System.Net.Mail.MailMessage(from, to);
-        MailAddress replyTo = new MailAddress("reply@example.com");
-        myMail.ReplyToList.Add(replyTo);
+        MailMessage mailMessage = new MailMessage
+        {
+            From = new MailAddress(smtpSettings["From"]),
+            Subject = subject,
+            Body = content,
+            IsBodyHtml = true
+        };
 
-        myMail.Subject = subject;
-        myMail.SubjectEncoding = System.Text.Encoding.UTF8;
-
-        myMail.Body = "<b>Test Mail</b><br>using <b>HTML</b>." + content;
-        myMail.BodyEncoding = System.Text.Encoding.UTF8;
-        myMail.IsBodyHtml = true;
-
-        mySmtpClient.Send(myMail);
+        mailMessage.To.Add(email);
+        smtpClient.Send(mailMessage);
     }
 }

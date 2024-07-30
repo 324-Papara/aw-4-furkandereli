@@ -22,8 +22,4 @@
       <ProjectReference Include="..\Para.Base\Para.Base.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Compile Remove="Migrations\20240728074417_Account.Designer.cs" />
-    </ItemGroup>
-
 </Project>

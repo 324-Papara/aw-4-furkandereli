@@ -12,8 +12,8 @@ using Para.Data.Context;
 namespace Para.Data.Migrations
 {
     [DbContext(typeof(ParaDbContext))]
-    [Migration("20240727120237_Country2")]
-    partial class Country2
+    [Migration("20240730195734_create_db")]
+    partial class create_db
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,121 @@ namespace Para.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("Para.Data.Domain.Account", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AccountNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Balance")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("IBAN")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
+
+                    b.Property<DateTime>("InsertDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InsertUser")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("OpenDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("Account", "dbo");
+                });
+
+            modelBuilder.Entity("Para.Data.Domain.AccountTransaction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("CreditAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("DebitAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("InsertDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InsertUser")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TransactionCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.ToTable("AccountTransaction", "dbo");
+                });
 
             modelBuilder.Entity("Para.Data.Domain.Country", b =>
                 {
@@ -280,6 +395,9 @@ namespace Para.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("CustomerId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -329,10 +447,36 @@ namespace Para.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId")
+                        .IsUnique()
+                        .HasFilter("[CustomerId] IS NOT NULL");
+
                     b.HasIndex("UserName")
                         .IsUnique();
 
                     b.ToTable("User", "dbo");
+                });
+
+            modelBuilder.Entity("Para.Data.Domain.Account", b =>
+                {
+                    b.HasOne("Para.Data.Domain.Customer", "Customer")
+                        .WithMany("Accounts")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Para.Data.Domain.AccountTransaction", b =>
+                {
+                    b.HasOne("Para.Data.Domain.Account", "Account")
+                        .WithMany("AccountTransactions")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("Para.Data.Domain.CustomerAddress", b =>
@@ -368,14 +512,34 @@ namespace Para.Data.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("Para.Data.Domain.User", b =>
+                {
+                    b.HasOne("Para.Data.Domain.Customer", "Customer")
+                        .WithOne("User")
+                        .HasForeignKey("Para.Data.Domain.User", "CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Para.Data.Domain.Account", b =>
+                {
+                    b.Navigation("AccountTransactions");
+                });
+
             modelBuilder.Entity("Para.Data.Domain.Customer", b =>
                 {
+                    b.Navigation("Accounts");
+
                     b.Navigation("CustomerAddresses");
 
                     b.Navigation("CustomerDetail")
                         .IsRequired();
 
                     b.Navigation("CustomerPhones");
+
+                    b.Navigation("User")
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

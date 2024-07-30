@@ -12,14 +12,16 @@ using Microsoft.OpenApi.Models;
 using Para.Api.Middleware;
 using Para.Api.Service;
 using Para.Base;
-using Para.Base.Log;
 using Para.Base.Token;
 using Para.Bussiness;
 using Para.Bussiness.Cqrs;
 using Para.Bussiness.Notification;
+using Para.Bussiness.RabbitMQ;
+using Para.Bussiness.RabbitMQ.Email;
 using Para.Bussiness.Token;
 using Para.Bussiness.Validation;
 using Para.Data.Context;
+using Para.Data.Domain;
 using Para.Data.UnitOfWork;
 using Serilog;
 using StackExchange.Redis;
@@ -137,7 +139,20 @@ public class Startup
             .UseRecommendedSerializerSettings()
             .UseSqlServerStorage(Configuration.GetConnectionString("HangfireConnection")));
         services.AddHangfireServer();
-        
+
+        //RabbitMQ
+        var rabbitMqSettings = Configuration.GetSection("RabbitMQ");
+        services.AddSingleton<RabbitMQClient>(rabbitmq => new RabbitMQClient(
+            rabbitMqSettings["HostName"],
+            int.Parse(rabbitMqSettings["Port"]),
+            rabbitMqSettings["UserName"],
+            rabbitMqSettings["Password"],
+            rabbitMqSettings["QueueName"]
+        ));
+
+        services.AddSingleton<EmailProducer>();
+        services.AddSingleton<EmailConsumer>();
+        services.AddControllersWithViews();
 
         services.AddScoped<ISessionContext>(provider =>
         {
@@ -149,7 +164,7 @@ public class Startup
         });
     }
 
-    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IServiceProvider serviceProvider, IRecurringJobManager recurringJobs)
     {
         if (env.IsDevelopment())
         {
@@ -161,6 +176,7 @@ public class Startup
 
         app.UseMiddleware<HeartbeatMiddleware>();
         app.UseMiddleware<ErrorHandlerMiddleware>();
+        
         Action<RequestProfilerModel> requestResponseHandler = requestProfilerModel =>
         {
             Log.Information("-------------Request-Begin------------");
@@ -172,6 +188,10 @@ public class Startup
         app.UseMiddleware<RequestLoggingMiddleware>(requestResponseHandler);
 
         app.UseHangfireDashboard();
+
+        var emailConsumer = serviceProvider.GetService<EmailConsumer>();
+        recurringJobs.AddOrUpdate("listen-email-queue", () => emailConsumer.StartListening(), "*/5 * * * * *");
+        
 
         app.UseHttpsRedirection();
         app.UseAuthentication();

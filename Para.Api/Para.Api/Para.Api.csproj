@@ -8,8 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Hangfire" Version="1.8.14" />
+        <PackageReference Include="Hangfire.MemoryStorage" Version="1.8.1.1" />
         <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.2" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
+        <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="2.3.2" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.5" />
         <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="7.0.17" />
