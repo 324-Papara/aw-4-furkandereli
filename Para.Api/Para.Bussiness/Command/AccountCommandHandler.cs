@@ -4,6 +4,7 @@ using MediatR;
 using Para.Base.Response;
 using Para.Bussiness.Cqrs;
 using Para.Bussiness.Notification;
+using Para.Bussiness.RabbitMQ.Email;
 using Para.Data.Domain;
 using Para.Data.UnitOfWork;
 using Para.Schema;
@@ -18,12 +19,14 @@ public class AccountCommandHandler :
     private readonly IUnitOfWork unitOfWork;
     private readonly IMapper mapper;
     private readonly INotificationService notificationService;
+    private readonly EmailProducer emailProducer;
 
-    public AccountCommandHandler(IUnitOfWork unitOfWork, IMapper mapper,INotificationService notificationService)
+    public AccountCommandHandler(IUnitOfWork unitOfWork, IMapper mapper, INotificationService notificationService, EmailProducer emailProducer)
     {
         this.unitOfWork = unitOfWork;
         this.mapper = mapper;
         this.notificationService = notificationService;
+        this.emailProducer = emailProducer;
     }
 
     public async Task<ApiResponse<AccountResponse>> Handle(CreateAccountCommand request, CancellationToken cancellationToken)
@@ -37,11 +40,13 @@ public class AccountCommandHandler :
         await unitOfWork.Complete();
 
         var customer = await unitOfWork.CustomerRepository.GetById(request.Request.CustomerId);
-        BackgroundJob.Schedule(() => 
-            SendEmail(customer.Email,$"{customer.FirstName} {customer.LastName}", request.Request.CurrencyCode),
-            TimeSpan.FromSeconds(30));
-        
-        
+
+        emailProducer.QueueEmail(
+            subject: "Welcome to Our Service",
+            email: customer.Email,
+            content: $"Hello {customer.FirstName} {customer.LastName}, your account with {request.Request.CurrencyCode} has been created."
+        );
+
         var response = mapper.Map<AccountResponse>(saved);
         return new ApiResponse<AccountResponse>(response);
     }
